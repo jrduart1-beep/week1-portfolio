@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Tyler Files</title>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* CSS VARIABLES & THEMES */
+        :root {
+            --bg: #1a1a2e;
+            --card-bg: #22223b;
+            --text: #f2e9e4;
+            --accent: #5a4fcf;
+            --accent-hover: #4a3fbf;
+            --border: #4a4e69;
+            --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --radius: 12px;
+            --green: #4ade80;
+            --red: #f87171;
+            --gold: #fbbf24;
+        }
+
+        body.light-mode {
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --border: #d1d5db;
+        }
+
+        body.hacker-mode {
+            --bg: #050505;
+            --card-bg: #0a0a0a;
+            --text: #00ff00;
+            --accent: #00cc00;
+            --accent-hover: #00ff00;
+            --border: #00ff00;
+            --font: 'Courier New', Courier, monospace;
+        }
+
+        /* GLOBAL STYLES */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font); }
+        body { background: var(--bg); color: var(--text); overflow-x: hidden; transition: background 0.3s, color 0.3s; height: 100vh; display: flex; flex-direction: column; }
+        button { cursor: pointer; border: none; border-radius: var(--radius); padding: 8px 16px; font-weight: bold; transition: 0.2s; background: var(--accent); color: white; }
+        button:hover { background: var(--accent-hover); filter: brightness(1.1); }
+        button:active { transform: scale(0.95); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        input, select, textarea { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; outline: none; }
+        
+        /* LAYOUT */
+        #normal-mode { display: flex; flex-direction: column; height: 100vh; flex: 1; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: var(--card-bg); border-bottom: 1px solid var(--border); z-index: 50; }
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        .logo-box { width: 40px; height: 40px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; border-radius: 8px; color: white; }
+        .header-center { position: relative; }
+        .online-pill { background: rgba(74, 222, 128, 0.2); color: var(--green); padding: 5px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; border: 1px solid var(--green); }
+        #online-dropdown { display: none; position: absolute; top: 100%; left: 0; background: var(--card-bg); border: 1px solid var(--border); padding: 10px; border-radius: var(--radius); z-index: 100; min-width: 150px; margin-top: 5px; }
+        .header-right { display: flex; gap: 10px; }
+        .btn-gold { background: var(--gold); color: #000; }
+        .btn-gray { background: var(--border); color: var(--text); }
+
+        .main-container { display: flex; flex: 1; overflow: hidden; padding: 20px; gap: 20px; }
+        .col-left { flex: 3; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; padding-right: 5px; }
+        .col-right { flex: 1; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; min-width: 250px; }
+
+        /* CARDS */
+        .card { background: var(--card-bg); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        /* UPLOAD & GALLERY */
+        .upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 40px; text-align: center; cursor: pointer; transition: 0.2s; background: rgba(0,0,0,0.1); }
+        .upload-zone:hover { border-color: var(--accent); background: rgba(0,0,0,0.2); }
+        .upload-controls { display: flex; gap: 10px; margin-top: 10px; justify-content: center; flex-wrap: wrap; }
+        
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+        .file-card { background: var(--bg); border-radius: var(--radius); padding: 10px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+        .file-card img, .file-card video { width: 100%; height: 150px; object-fit: cover; border-radius: 8px; }
+        .file-actions { display: flex; justify-content: space-between; gap: 5px; }
+        .file-actions button { flex: 1; font-size: 12px; padding: 5px; }
+
+        /* CHAT SIDEBAR */
+        #chat-sidebar { position: fixed; right: -400px; top: 0; width: 400px; height: 100vh; background: var(--card-bg); border-left: 1px solid var(--border); transition: right 0.3s; display: flex; flex-direction: column; z-index: 200; box-shadow: -5px 0 15px rgba(0,0,0,0.5); }
+        #chat-sidebar.open { right: 0; }
+        .chat-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .chat-input-area { padding: 15px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+        .msg-bubble { background: var(--bg); padding: 10px; border-radius: var(--radius); font-size: 14px; position: relative; border: 1px solid var(--border); }
+        .msg-reactions { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+        .react-btn { background: var(--card-bg); border: 1px solid var(--border); padding: 2px 6px; font-size: 12px; border-radius: 20px; color: var(--text); cursor: pointer; }
+
+        /* REELORTS */
+        #reelorts-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 1000; flex-direction: column; }
+        #reelorts-feed { flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory; }
+        .reelort-video { width: 100%; height: 100vh; scroll-snap-align: start; object-fit: contain; }
+        .reelort-ui { position: absolute; right: 20px; bottom: 100px; display: flex; flex-direction: column; gap: 15px; }
+        .reelort-btn { background: rgba(255,255,255,0.2); border-radius: 50%; width: 50px; height: 50px; font-size: 24px; display: flex; justify-content: center; align-items: center; border: 1px solid rgba(255,255,255,0.4); }
+
+        /* SETTINGS & MODALS */
+        #settings-sidebar { position: fixed; right: -350px; top: 0; width: 350px; height: 100vh; background: var(--card-bg); border-left: 1px solid var(--border); transition: right 0.3s; padding: 20px; z-index: 200; overflow-y: auto; }
+        #settings-sidebar.open { right: 0; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); z-index: 300; justify-content: center; align-items: center; }
+        .modal { background: var(--card-bg); padding: 20px; border-radius: var(--radius); width: 400px; border: 1px solid var(--border); max-height: 90vh; overflow-y: auto; }
+        
+        /* ALERTS */
+        #megaphone-alert { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: var(--red); color: white; padding: 20px; border-radius: var(--radius); font-weight: bold; z-index: 9999; transition: top 0.5s; text-align: center; min-width: 300px; border: 2px solid white; }
+        #megaphone-alert.show { top: 20px; }
+        
+        /* SYS DEBUGGER (Built-in error catching for CodeHS) */
+        #sys-debugger { display: none; position: fixed; bottom: 0; left: 0; width: 100vw; max-height: 150px; background: rgba(0,0,0,0.9); color: #0f0; font-family: monospace; font-size: 12px; padding: 10px; overflow-y: auto; z-index: 99999; border-top: 2px solid #0f0; }
+
+        /* OS MODE */
+        #os-mode { display: none; width: 100vw; height: 100vh; background: url('https://upload.wikimedia.org/wikipedia/commons/e/ea/Windows_11_logo.svg') center/cover no-repeat; background-color: #005A9E; position: absolute; top:0; left:0; overflow: hidden; z-index: 5000; }
+        .os-desktop { flex: 1; position: relative; padding: 20px; height: calc(100vh - 48px); }
+        .os-icon { width: 80px; text-align: center; color: white; cursor: pointer; margin-bottom: 20px; }
+        .os-icon-img { font-size: 40px; margin-bottom: 5px; }
+        .os-window { position: absolute; top: 50px; left: 50px; width: 800px; height: 500px; background: var(--card-bg); border-radius: 8px; border: 1px solid #333; display: none; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .os-window-header { background: #202020; color: white; padding: 10px; cursor: grab; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+        .os-window-content { flex: 1; padding: 20px; overflow: auto; background: var(--bg); display: flex; flex-direction: column; gap: 20px; }
+        .os-taskbar { height: 48px; background: rgba(32, 32, 32, 0.9); display: flex; align-items: center; justify-content: center; position: absolute; bottom: 0; width: 100%; border-top: 1px solid rgba(255,255,255,0.1); z-index: 5001; }
+        .start-btn { width: 36px; height: 36px; border-radius: 4px; background: none; font-size: 20px; display: flex; justify-content: center; align-items: center; margin: 0 5px; }
+        #start-menu { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 300px; background: rgba(32, 32, 32, 0.95); border-radius: 8px; display: none; flex-direction: column; padding: 20px; border: 1px solid rgba(255,255,255,0.1); color: white; z-index: 5002; }
+    </style>
+</head>
+<body class="dark-mode">
+
+    <!-- Debugger Console -->
+    <div id="sys-debugger"></div>
+
+    <div id="normal-mode">
+        <header>
+            <div class="header-left">
+                <div class="logo-box">TF</div>
+                <div>
+                    <h2 id="main-title" style="font-size:18px; margin:0; line-height:1;">Tyler Files <span style="color:red; font-size:12px;">(Loading...)</span></h2>
+                    <small style="color:#aaa; font-size:11px;">Cloud-backed media & notes</small>
+                </div>
+            </div>
+            <div class="header-center">
+                <button type="button" class="online-pill" id="btn-online-status">🟢 Online: <span id="online-count">0</span></button>
+                <div id="online-dropdown"></div>
+            </div>
+            <div class="header-right">
+                <button type="button" class="btn-gold" id="btn-account">👤 <span id="hdr-username">Guest</span> | 🪙 <span id="hdr-coins">0</span></button>
+                <button type="button" class="btn-gray" id="btn-categories">☰ Categories</button>
+                <button type="button" class="btn-gray" id="btn-settings">⚙ Settings</button>
+            </div>
+        </header>
+
+        <div class="main-container">
+            <div class="col-left" id="main-col-left">
+                
+                <!-- UPLOAD CARD -->
+                <div class="card" id="card-upload">
+                    <h3>Upload to Vault</h3>
+                    <div class="upload-zone" id="upload-zone">
+                        <p id="upload-zone-text">Drag & Drop or Click to Select File</p>
+                        <input type="file" id="file-input" style="display:none;">
+                    </div>
+                    <div class="upload-controls">
+                        <select id="upload-folder">
+                        <option value="pictures">Pictures</option>
+                        <option value="videos">Videos</option>
+                        <option value="audio">Audio</option>
+                        <option value="files">Files</option>
+                        <option value="admin">Admin Files</option>
+                    </select>
+                </select>
+                        <input type="text" id="upload-subfolder" placeholder="Subfolder (Optional)">
+                        <input type="password" id="upload-key" placeholder="Upload Key (Guests)">
+                        <button type="button" id="btn-upload-submit">Upload File</button>
+                    </div>
+                    <div id="upload-progress" style="margin-top:10px; font-size:12px; color:var(--green); text-align:center; font-weight:bold;"></div>
+                </div>
+
+                <!-- MAIN DYNAMIC CONTENT -->
+                <div class="card" id="card-dynamic-content" style="flex:1; display:flex; flex-direction:column;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <h3 id="category-title">Gallery: All</h3>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" id="search-gallery" placeholder="Search files...">
+                            <select id="sort-gallery">
+                                <option value="newest">Newest</option>
+                                <option value="oldest">Oldest</option>
+                                <option value="az">A-Z</option>
+                            </select>
+                            <button type="button" id="btn-refresh-gallery" class="btn-gray">🔄 Refresh</button>
+                        </div>
+                    </div>
+                    <div class="gallery-grid" id="main-grid-content"></div>
+                </div>
+            </div>
+
+            <div class="col-right" id="main-col-right">
+                <!-- REELORTS CARD -->
+                <div class="card" id="card-reelorts" style="display:none; background: linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045); color:white; text-align:center; border:none;">
+                    <h3 style="margin-bottom:10px;">Reelorts</h3>
+                    <button type="button" id="btn-enter-reelorts" style="background:#fff; color:#000; width:100%;">📱 Enter Reelorts</button>
+                </div>
+
+                <!-- ADMIN DASHBOARD -->
+                <div class="card" id="card-admin-dash" style="display:none; border-color:var(--red);">
+                    <h3 style="color:var(--red); margin-bottom:10px;">🛡️ Admin Server</h3>
+                    <div style="background:var(--bg); padding:10px; border-radius:8px; border:1px solid var(--border);">
+                        <strong>Supabase Health Check</strong>
+                        <div style="display:flex; gap:10px; font-size:12px; margin-top:5px; color:var(--green);">
+                            <span>🟢 DB</span><span>🟢 Storage</span><span>🟢 Auth</span>
+                        </div>
+                    </div>
+                    <p style="margin-top:15px; font-size:12px; text-align:center; font-weight:bold; color:var(--green);">Total Outlook: Nominal</p>
+                </div>
+
+                <div style="flex:1;"></div>
+
+                <div class="card">
+                    <h4 style="margin-bottom:10px;">Quick Actions</h4>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <button type="button" class="btn-gray" id="btn-export">📥 Export all (JSON)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OS MODE -->
+    <div id="os-mode">
+        <div class="os-desktop">
+            <div class="os-icon" id="icon-explorer">
+                <div class="os-icon-img">📁</div>
+                <div style="font-size:12px; font-weight:bold;">Tyler Explorer</div>
+            </div>
+            <div class="os-icon" id="icon-admin" style="display:none;">
+                <div class="os-icon-img">⚙️</div>
+                <div style="font-size:12px; font-weight:bold;">Admin Server</div>
+            </div>
+        </div>
+        <div class="os-window" id="win-explorer">
+            <div class="os-window-header" id="win-explorer-header">
+                <span style="font-weight:bold;">📁 Tyler Explorer</span>
+                <button type="button" class="btn-gray" style="padding:2px 8px; background:var(--red); color:white;" id="btn-close-explorer">X</button>
+            </div>
+            <div class="os-window-content" id="win-explorer-content"></div>
+        </div>
+        <div class="os-window" id="win-admin" style="width:400px;">
+            <div class="os-window-header" id="win-admin-header">
+                <span style="font-weight:bold;">⚙️ Admin Server</span>
+                <button type="button" class="btn-gray" style="padding:2px 8px; background:var(--red); color:white;" id="btn-close-admin">X</button>
+            </div>
+            <div class="os-window-content" id="win-admin-content"></div>
+        </div>
+        <div class="os-taskbar">
+            <button type="button" class="start-btn" id="btn-start">💠</button>
+        </div>
+        <div id="start-menu">
+            <h3 style="margin-bottom:15px;">Tyler OS</h3>
+            <button type="button" id="btn-os-shutdown" style="background:var(--red); width:100%; padding:12px;">⏻ Shut Down</button>
+        </div>
+    </div>
+
+    <!-- SIDEBARS & MODALS -->
+    <div id="settings-sidebar">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2>Settings</h2>
+            <button type="button" id="btn-close-settings" class="btn-gray">X</button>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:15px;">
+            <button type="button" id="btn-cycle-theme">🎨 Cycle Theme</button>
+            <div class="card" style="padding:15px;">
+                <h4 style="margin-bottom:10px;">Admin Access</h4>
+                <input type="password" id="admin-pass-input" placeholder="Enter Password" style="width:100%; margin-bottom:10px;">
+                <button type="button" id="btn-admin-login" style="width:100%;">Verify Access</button>
+            </div>
+            <div id="admin-tools-container" style="display:none; flex-direction:column; gap:15px;">
+                <hr style="border-color:var(--border);">
+                <h3 style="color:var(--red);">Admin Controls</h3>
+                <button type="button" id="btn-toggle-os" style="background:#005A9E; border:1px solid #0078D4;">💻 Enter OS Mode</button>
+                <div class="card" style="padding:15px;">
+                    <input type="text" id="megaphone-input" placeholder="Message all users..." style="width:100%; margin-bottom:10px;">
+                    <button type="button" id="btn-megaphone-send" style="width:100%; background:var(--red);">🚨 Broadcast</button>
+                </div>
+                <div class="card" style="padding:15px;">
+                    <button type="button" id="btn-intercom" style="width:100%; background:#fbbf24; color:#000;">🎤 Hold to Talk</button>
+                </div>
+                <div class="card" style="padding:15px;">
+                    <h5 style="margin-bottom:10px;">Create Poll</h5>
+                    <input type="text" id="poll-q" placeholder="Question?" style="width:100%; margin-bottom:5px;">
+                    <input type="text" id="poll-opts" placeholder="Option A, Option B" style="width:100%; margin-bottom:5px;">
+                    <input type="number" id="poll-time" placeholder="Minutes active" style="width:100%; margin-bottom:10px;">
+                    <button type="button" id="btn-create-poll" style="width:100%;">Deploy Poll</button>
+                </div>
+                <div class="card" style="padding:15px; border-color:var(--gold);">
+                    <button type="button" id="btn-start-race" style="width:100%; background:var(--accent);">🏁 Start Horse Race</button>
+                </div>
+            </div>
+            <div id="owner-tools-container" style="display:none; flex-direction:column; gap:15px;">
+                <hr style="border-color:var(--border);">
+                <h3 style="color:var(--gold);">OWNER Tools</h3>
+                <div class="card" style="padding:15px;">
+                    <h5 style="margin-bottom:10px;">Richest Users</h5>
+                    <div id="richest-users-list" style="display:flex; flex-direction:column; gap:5px;"></div>
+                    <button type="button" id="btn-refresh-rich" class="btn-gray" style="width:100%; margin-top:10px;">Refresh</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-sidebar">
+        <div class="chat-header">
+            <h3 id="chat-title" style="font-size:16px;">Chat</h3>
+            <button type="button" id="btn-close-chat" class="btn-gray">X</button>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Type message..." style="flex:1;">
+            <button type="button" id="btn-chat-send">Send</button>
+        </div>
+    </div>
+
+    <div id="reelorts-overlay">
+        <button type="button" id="btn-close-reelorts" style="position:absolute; top:20px; left:20px; z-index:1001; background:rgba(0,0,0,0.5); font-size:18px; padding:10px 20px; border:1px solid #fff;">❌ Exit Feed</button>
+        <div id="reelorts-feed"></div>
+    </div>
+
+    <div id="modal-categories" class="modal-overlay">
+        <div class="modal" style="width:600px; max-width:90vw;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2>Vault Categories</h2>
+                <button type="button" id="btn-close-cat-modal" class="btn-gray">X</button>
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:15px;" id="cat-grid">
+                <!-- Buttons are mapped using data-action="category" -->
+
+                <button type="button" class="btn-gray" data-action="category" data-cat="all" style="height:60px;">📁 All Media</button>
+                <button type="button" class="btn-gray" data-action="category" data-cat="pictures" style="height:60px;">🖼️ Pictures</button>
+                <button type="button" class="btn-gray" data-action="category" data-cat="videos" style="height:60px;">🎥 Videos</button>
+                <button type="button" class="btn-gray" data-action="category" data-cat="audio" style="height:60px;">🎵 Audio</button>
+                <button type="button" class="btn-gray" data-action="category" data-cat="files" style="height:60px;">📄 Files</button>
+                <button type="button" class="btn-gray" data-action="category" data-cat="games" style="height:60px; background:var(--accent);">🎮 Games</button>
+                <button type="button" class="btn-gray" data-action="category" data-cat="bounties" style="height:60px; background:#8b5cf6;">📜 Bounties</button>
+                <button type="button" class="btn-gray" data-action="category" data-cat="polls" style="height:60px; background:#ec4899;">📊 Polls</button>
+                <button type="button" class="btn-gray" data-action="category" data-cat="casino" style="height:60px; background:var(--gold); color:#000;">🎰 Casino</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-profile" class="modal-overlay">
+        <div class="modal">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2>Account Center</h2>
+                <button type="button" id="btn-close-profile" class="btn-gray">X</button>
+            </div>
+            <div id="auth-section">
+                <input type="text" id="auth-username" placeholder="Enter Username" style="width:100%; margin-bottom:15px; padding:12px;">
+                <button type="button" id="btn-auth-login" style="width:100%; padding:12px; font-size:16px;">Login / Register</button>
+            </div>
+            <div id="profile-section" style="display:none; flex-direction:column; gap:15px;">
+                <div style="position:relative; width:100px; margin:0 auto;">
+                    <img id="prof-pfp" src="https://via.placeholder.com/100" style="width:100px; height:100px; border-radius:50%; object-fit:cover; display:block; border:3px solid var(--accent);">
+                    <input type="file" id="prof-pfp-upload" style="display:none;" accept="image/*">
+                    <button type="button" id="btn-prof-pfp-trigger" style="position:absolute; bottom:0; right:0; padding:5px; border-radius:50%; background:var(--accent); font-size:12px;">✏️</button>
+                </div>
+                <div style="text-align:center;">
+                    <h3 id="prof-username" style="font-size:24px; margin-bottom:5px;">User</h3>
+                    <span id="prof-role-badge" style="font-size:12px; padding:4px 8px; border-radius:6px; background:var(--border); font-weight:bold;">GUEST</span>
+                </div>
+                <textarea id="prof-bio" placeholder="Write a bio..." rows="3" style="resize:none;"></textarea>
+                <button type="button" id="btn-prof-save" class="btn-gray">Save Bio</button>
+                <div class="card" style="background:var(--bg); padding:15px; display:flex; justify-content:space-between; align-items:center; border-color:var(--gold);">
+                    <div>
+                        <span style="font-size:12px; color:gray; display:block;">Wallet Balance</span>
+                        <span style="font-size:20px; font-weight:bold; color:var(--gold);">🪙 <span id="prof-coins">0</span></span>
+                    </div>
+                    <button type="button" id="btn-claim-daily" style="background:var(--gold); color:#000;">Claim 50 Daily</button>
+                </div>
+                <button type="button" id="btn-logout" style="background:var(--red); padding:12px; margin-top:10px;">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="megaphone-alert">⚠️ System Message</div>
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT: ROBUST ARCHITECTURE -->
+    <!-- ========================================== -->
+    <script>
+        // 1. CUSTOM ERROR CATCHER (Bypasses CodeHS :0:0 blind spot)
+        window.onerror = function(msg, url, line, col, error) {
+            const dbg = document.getElementById('sys-debugger');
+            if(dbg) {
+                dbg.style.display = 'block';
+                dbg.innerHTML += `<div>[ERR] ${msg} (Line: ${line})</div>`;
+            }
+            console.error("Caught Global Error:", msg, line, col, error);
+            return false;
+        };
+
+        window.addEventListener("unhandledrejection", function(e) {
+            const dbg = document.getElementById('sys-debugger');
+            if(dbg) {
+                dbg.style.display = 'block';
+                dbg.innerHTML += `<div>[PROMISE ERR] ${e.reason}</div>`;
+            }
+            console.error("Unhandled Promise Rejection:", e.reason);
+        });
+
+        // 2. STATE & CONFIG
+        const config = {
+            url: 'https://qoghsvgbirgrvmlvtcfe.supabase.co',
+            key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvZ2hzdmdiaXJncnZtbHZ0Y2ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNzI1NzEsImV4cCI6MjA4OTg0ODU3MX0.Em6fUIhpEP84OH85T564F10RXOQ4ME_ZltFaYTGAo9A'
+        };
+        
+        let db = null; // Supabase instance
+        let state = {
+            user: null,
+            role: 'guest',
+            category: 'all',
+            themeIdx: 0,
+            activeChat: null,
+            jackpot: 0,
+            online: {},
+            mediaRecorder: null,
+            audioChunks:[],
+            audioChannel: null,
+            presenceChannel: null
+        };
+        const themes = ['dark-mode', 'light-mode', 'hacker-mode'];
+
+        // 3. SAFE DOM UTILITIES
+        const el = (id) => document.getElementById(id);
+        const updateText = (id, text) => { const element = el(id); if(element) element.innerText = text; };
+        const updateHTML = (id, html) => { const element = el(id); if(element) element.innerHTML = html; };
+        
+        // This attaches event listeners safely without crashing if an element is missing
+        const bindBtn = (id, eventType, callback) => {
+            const element = el(id);
+            if (element) {
+                element.addEventListener(eventType, async (e) => {
+                    try { await callback(e); } 
+                    catch (err) { console.error(`Action Failed [${id}]:`, err); alert("An error occurred. Check console."); }
+                });
+            } else {
+                console.warn(`Button ${id} not found in DOM.`);
+            }
+        };
+
+        // ==========================================
+        // 4. CORE FEATURES
+        // ==========================================
+        const App = {
+            initSupabase: () => {
+                if (typeof window.supabase === 'undefined') {
+                    alert("CRITICAL ERROR: Supabase CDN blocked by your network or CodeHS. Database features will not work.");
+                    throw new Error("Supabase Library Not Found");
+                }
+                db = window.supabase.createClient(config.url, config.key);
+                console.log("Database Connected.");
+            },
+            
+            showMsg: (msg) => {
+                const m = el('megaphone-alert');
+                if(m) {
+                    m.innerText = msg;
+                    m.classList.add('show');
+                    setTimeout(() => m.classList.remove('show'), 5000);
+                }
+            },
+
+            cycleTheme: () => {
+                document.body.classList.remove(themes[state.themeIdx]);
+                state.themeIdx = (state.themeIdx + 1) % themes.length;
+                document.body.classList.add(themes[state.themeIdx]);
+            },
+
+            // --- AUTH & PROFILE ---
+            loadSession: async (username) => {
+                if(!db) return;
+                const { data, error } = await db.from('profiles').select('*').eq('username', username).single();
+                
+                if (data) {
+                    state.user = data;
+                    state.role = data.role || 'guest';
+                    
+                    updateText('hdr-username', data.username);
+                    updateText('hdr-coins', data.coins || 0);
+                    
+                    el('auth-section').style.display = 'none';
+                    el('profile-section').style.display = 'flex';
+                    
+                    updateText('prof-username', data.username);
+                    updateText('prof-coins', data.coins || 0);
+                    if(el('prof-bio')) el('prof-bio').value = data.bio || '';
+                    if(data.pfp_url && el('prof-pfp')) el('prof-pfp').src = data.pfp_url;
+                    
+                    const badge = el('prof-role-badge');
+                    if(badge) {
+                        badge.innerText = state.role.toUpperCase();
+                        badge.style.color = state.role === 'owner' ? 'white' : 'inherit';
+                        badge.style.background = state.role === 'owner' ? 'var(--red)' : (state.role === 'admin' ? 'var(--accent)' : 'var(--border)');
+                    }
+
+                    if (state.role === 'admin' || state.role === 'owner') {
+                        el('admin-tools-container').style.display = 'flex';
+                        el('card-admin-dash').style.display = 'block';
+                    }
+                    if (state.role === 'owner') {
+                        el('owner-tools-container').style.display = 'flex';
+                        App.loadRichest();
+                    }
+                    App.setupPresence(data.username);
+                } else {
+                    // Create user
+                    const { error: insErr } = await db.from('profiles').insert([{ username: username, role: 'user', coins: 0, bio: '' }]);
+                    if (insErr) throw insErr;
+                    await App.loadSession(username);
+                }
+            },
+
+            login: async () => {
+                const un = el('auth-username').value.trim();
+                if(!un) return alert("Enter username.");
+                const btn = el('btn-auth-login');
+                btn.disabled = true; btn.innerText = "Loading...";
+                await App.loadSession(un);
+                btn.disabled = false; btn.innerText = "Login / Register";
+            },
+
+            logout: () => {
+                state.user = null; state.role = 'guest';
+                updateText('hdr-username', 'Guest'); updateText('hdr-coins', '0');
+                el('auth-section').style.display = 'block'; el('profile-section').style.display = 'none';
+                el('admin-tools-container').style.display = 'none'; el('card-admin-dash').style.display = 'none';
+                el('owner-tools-container').style.display = 'none';
+                if(state.presenceChannel) state.presenceChannel.untrack();
+                alert("Logged out.");
+            },
+            
+            claimDaily: async () => {
+                if(!state.user) return alert("Log in first.");
+                const now = new Date().toISOString().split('T')[0];
+                if(state.user.last_daily === now) return alert("Already claimed today.");
+                
+                const newCoins = (state.user.coins || 0) + 50;
+                await db.from('profiles').update({ coins: newCoins, last_daily: now }).eq('username', state.user.username);
+                alert("Claimed 50 Tyler Coins!");
+                await App.loadSession(state.user.username);
+            },
+            
+            checkAdmin: async () => {
+                if(!state.user) return alert("Log in first.");
+                const pass = el('admin-pass-input').value;
+                let r = null;
+                if(pass === 'Tyl3rF1les') r = 'admin';
+                if(pass === 'Tyl3r1sG@y') r = 'owner';
+                if(r) {
+                    await db.from('profiles').update({ role: r }).eq('username', state.user.username);
+                    alert("Privileges elevated: " + r);
+                    el('admin-pass-input').value = '';
+                    await App.loadSession(state.user.username);
+                } else alert("Wrong password.");
+            },
+            // --- PRESENCE & REALTIME ---
+            setupPresence: (username) => {
+                if(!db) return;
+                if(!state.presenceChannel) state.presenceChannel = db.channel('online-users');
+                
+                state.presenceChannel.on('presence', { event: 'sync' }, () => {
+                    const newState = state.presenceChannel.presenceState();
+                    state.online = {};
+                    for (const id in newState) {
+                        if(newState[id][0] && newState[id][0].user) {
+                            state.online[newState[id][0].user] = true;
+                        }
+                    }
+                    updateText('online-count', Object.keys(state.online).length);
+                    const drop = el('online-dropdown');
+                    if(drop) {
+                        drop.innerHTML = Object.keys(state.online).map(u => 
+                            `<div style="padding:5px; border-bottom:1px solid var(--border); font-size:12px;">👤 ${u}</div>`
+                        ).join('');
+                    }
+                });
+
+                state.presenceChannel.subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await state.presenceChannel.track({ user: username, online_at: new Date().toISOString() });
+                    }
+                });
+            },
+
+            initRealtime: () => {
+                if(!db) return;
+                // Comments
+                db.channel('public:comments')
+                  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, payload => {
+                      if(state.activeChat && payload.new.file_name === state.activeChat) {
+                          App.loadChat(state.activeChat);
+                      }
+                  }).subscribe();
+
+                // Casino State
+                db.channel('public:global_casino')
+                  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'global_casino' }, payload => {
+                      if(payload.new) {
+                          state.jackpot = payload.new.roulette_pool || 0;
+                          const jpEl = el('casino-jackpot-display');
+                          if(jpEl) jpEl.innerText = `🪙 ${state.jackpot.toFixed(0)}`;
+                          
+                          if(payload.new.horse_race_active === true && state.category === 'casino') {
+                              App.runHorseRace();
+                          }
+                      }
+                  }).subscribe();
+
+                // Megaphone Broadcasts
+                const bc = db.channel('global-comms');
+                bc.on('broadcast', { event: 'megaphone' }, payload => {
+                    App.showMsg(payload.payload.msg);
+                });
+                bc.subscribe();
+
+                // Audio Intercom
+                state.audioChannel = db.channel('global-audio');
+                state.audioChannel.on('broadcast', { event: 'audio' }, payload => {
+                    if(payload.payload.data) {
+                        try {
+                            const audio = new Audio(payload.payload.data);
+                            audio.play().catch(e => console.warn("Browser blocked audio", e));
+                        } catch(err) {}
+                    }
+                }).subscribe();
+            },
+
+            // --- UPLOAD ---
+            uploadFile: async () => {
+                if(!db) return alert("DB not connected.");
+                const fileInput = el('file-input');
+                if(!fileInput || !fileInput.files.length) return alert("Select a file first.");
+                
+                const file = fileInput.files[0];
+                const folder = el('upload-folder').value;
+                const sub = el('upload-subfolder').value.trim();
+                const key = el('upload-key').value;
+                const btn = el('btn-upload-submit');
+                const prog = el('upload-progress');
+                
+                let path = `${folder}/${sub ? sub + '/' : ''}${Date.now()}_${file.name}`;
+                
+                if(!state.user && key !== 'admin2026') {
+                    path = `review/${Date.now()}_${file.name}`;
+                    alert("Guest Upload: Sent to hidden /review/ folder for Admin approval.");
+                }
+
+                if(prog) prog.innerText = "Uploading...";
+                btn.disabled = true;
+
+                try {
+                    const { error } = await db.storage.from('tyler-files').upload(path, file);
+                    if(error) throw error;
+                    if(prog) prog.innerText = "✅ Success!";
+                    fileInput.value = '';
+                    updateHTML('upload-zone', '<p>Drag & Drop or Click to Select File</p><input type="file" id="file-input" style="display:none;">');
+                    App.rebindFileInput();
+                    
+                    if(state.category === 'all' || state.category === folder) {
+                        App.fetchGallery(state.category);
+                    }
+                } catch(e) {
+                    if(prog) prog.innerText = "❌ Error: " + e.message;
+                } finally {
+                    btn.disabled = false;
+                    setTimeout(() => { if(prog && prog.innerText.includes('✅')) prog.innerText = ''; }, 3000);
+                }
+            },
+
+            rebindFileInput: () => {
+                const zone = el('upload-zone');
+                const fi = el('file-input');
+                if(zone && fi) {
+                    zone.onclick = () => fi.click();
+                    fi.onchange = (e) => {
+                        if(e.target.files.length) {
+                            zone.innerHTML = `<p style="color:var(--green); font-weight:bold;">Selected: ${e.target.files[0].name}</p><input type="file" id="file-input" style="display:none;">`;
+                            App.rebindFileInput(); // Rebind after overwriting HTML
+                        }
+                    };
+                }
+            },
+
+            // --- GALLERY ---
+            fetchGallery: async (folder) => {
+                if(!db) return;
+                state.category = folder;
+                updateText('category-title', `Gallery: ${folder.toUpperCase()}`);
+                
+                const grid = el('main-grid-content');
+                if(!grid) return;
+                
+                if(folder === 'games') return App.renderGames();
+                if(folder === 'bounties') return App.renderBounties();
+                if(folder === 'polls') return App.renderPolls();
+                if(folder === 'casino') return App.renderCasino();
+
+                grid.innerHTML = '<p style="grid-column:1/-1; text-align:center;">Loading media...</p>';
+                const rCard = el('card-reelorts');
+                if(rCard) rCard.style.display = (folder === 'videos') ? 'block' : 'none';
+
+                try {
+                    const folderPath = folder === 'all' ? '' : folder;
+                    const { data, error } = await db.storage.from('tyler-files').list(folderPath, {
+                        limit: 100, sortBy: { column: 'created_at', order: 'desc' }
+                    });
+
+                    if(error) throw error;
+                    if(!data || data.length === 0 || (data.length === 1 && data[0].name === '.emptyFolderPlaceholder')) {
+                        grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:gray;">No files found.</p>';
+                        return;
+                    }
+
+                    grid.innerHTML = '';
+                    data.forEach(file => {
+                        if(file.name === '.emptyFolderPlaceholder') return;
+                        
+                        const { data: pUrl } = db.storage.from('tyler-files').getPublicUrl(`${folderPath ? folderPath + '/' : ''}${file.name}`);
+                        const url = pUrl.publicUrl;
+                        const isVid = !!file.name.match(/\.(mp4|webm|ogg|mov)$/i);
+                        const isAud = !!file.name.match(/\.(mp3|wav|ogg)$/i);
+                        
+                        let mediaHTML = isVid ? `<video src="${url}" controls preload="metadata" style="width:100%; height:150px; object-fit:cover; border-radius:8px;"></video>` 
+                                      : isAud ? `<audio src="${url}" controls style="width:100%; margin-top:50px;"></audio>` 
+                                      : `<img src="${url}" crossorigin="anonymous" alt="media" onerror="this.src='https://via.placeholder.com/150?text=File'" style="width:100%; height:150px; object-fit:cover; border-radius:8px;">`;
+
+                        // Utilizing data-action attributes instead of inline onclick!
+                        grid.innerHTML += `
+                            <div class="file-card">
+                                ${mediaHTML}
+                                <div style="font-size:12px; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${file.name}">${file.name}</div>
+                                <div class="file-actions">
+                                    <button type="button" data-action="download" data-url="${url}" data-file="${file.name}" data-vid="${isVid}">📥 DL</button>
+                                    <button type="button" data-action="chat" data-file="${file.name}" style="background:var(--accent);">💬 Chat</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } catch(e) {
+                    grid.innerHTML = `<p style="grid-column:1/-1; color:var(--red);">Error: ${e.message}</p>`;
+                }
+            },
+
+            downloadFile: (url, fileName, isVid) => {
+                if(isVid === 'true') {
+                    const a = document.createElement('a'); a.href = url; a.download = fileName;
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    return;
+                }
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width; canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    ctx.font = `bold ${Math.max(12, Math.floor(img.height * 0.05))}px Arial`;
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+                    ctx.textAlign = "right";
+                    ctx.fillText("THE Tyler Files", canvas.width - (canvas.width * 0.02), canvas.height - (canvas.height * 0.02));
+                    canvas.toBlob((blob) => {
+                        const blobUrl = URL.createObjectURL(blob);
+                        const a = document.createElement('a'); a.href = blobUrl; a.download = "TF_" + fileName;
+                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                        URL.revokeObjectURL(blobUrl);
+                    }, 'image/png');
+                };
+                img.onerror = () => {
+                    const a = document.createElement('a'); a.href = url; a.download = fileName;
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                };
+                img.src = url;
+            },
+
+            // --- CHAT ---
+            openChat: (fileName) => {
+                state.activeChat = fileName;
+                updateText('chat-title', "💬 " + fileName);
+                const sb = el('chat-sidebar');
+                if(sb) sb.classList.add('open');
+                App.loadChat(fileName);
+            },
+
+            loadChat: async (fileName) => {
+                if(!db) return;
+                const container = el('chat-messages');
+                if(!container) return;
+                
+                if(container.innerHTML === '') container.innerHTML = '<small style="color:gray; text-align:center;">Loading history...</small>';
+                
+                try {
+                    const { data, error } = await db.from('comments').select('*, comment_reactions(*)').eq('file_name', fileName).order('id', { ascending: true });
+                    if(error) throw error;
+                    
+                    container.innerHTML = '';
+                    if(!data || data.length === 0) {
+                        container.innerHTML = '<div style="text-align:center; color:gray; margin-top:20px;">No messages yet.</div>';
+                        return;
+                    }
+
+                    data.forEach(msg => {
+                        const counts = {};
+                        if(msg.comment_reactions) msg.comment_reactions.forEach(r => { counts[r.reaction] = (counts[r.reaction] || 0) + 1; });
+                        const reactStr = Object.keys(counts).map(k => `<span style="background:rgba(0,0,0,0.2); padding:2px 5px; border-radius:4px; font-size:11px;">${k} ${counts[k]}</span>`).join(' ');
+
+                        container.innerHTML += `
+                            <div class="msg-bubble">
+                                <div style="font-weight:bold; color:var(--accent); font-size:12px;">${msg.author}</div>
+                                <div style="word-break:break-word;">${msg.content}</div>
+                                <div class="msg-reactions">
+                                    <button type="button" class="react-btn" data-action="react" data-id="${msg.id}" data-emoji="👍">👍</button>
+                                    <button type="button" class="react-btn" data-action="react" data-id="${msg.id}" data-emoji="❤️">❤️</button>
+                                    <button type="button" class="react-btn" data-action="react" data-id="${msg.id}" data-emoji="😂">😂</button>
+                                    <button type="button" class="react-btn" data-action="react" data-id="${msg.id}" data-emoji="😡">😡</button>
+                                    <button type="button" class="react-btn" data-action="react" data-id="${msg.id}" data-emoji="🎉">🎉</button>
+                                </div>
+                                <div style="margin-top:5px; display:flex; gap:5px;">${reactStr}</div>
+                            </div>
+                        `;
+                    });
+                    container.scrollTop = container.scrollHeight;
+                } catch(e) { container.innerHTML = `<small style="color:red;">Error: ${e.message}</small>`; }
+            },
+
+            sendChat: async () => {
+                const inp = el('chat-input');
+                if(!inp || !state.activeChat || !db) return;
+                const val = inp.value.trim();
+                if(!val) return;
+                
+                const btn = el('btn-chat-send');
+                btn.disabled = true;
+                try {
+                    const authorName = state.user ? state.user.username : 'Guest_' + Math.floor(Math.random()*9999);
+                    await db.from('comments').insert([{ file_name: state.activeChat, author: authorName, content: val }]);
+                    inp.value = '';
+                    App.loadChat(state.activeChat);
+                } catch(e) { alert("Failed to send."); }
+                finally { btn.disabled = false; }
+            },
+
+            react: async (id, emoji) => {
+                if(!state.user) return alert("Log in to react!");
+                try {
+                    await db.from('comment_reactions').insert([{ comment_id: id, user_name: state.user.username, reaction: emoji }]);
+                    if(state.activeChat) App.loadChat(state.activeChat);
+                } catch(e){}
+            },
+
+            // --- CATEGORIES (Games, Bounties, Polls, Casino) ---
+            renderGames: () => {
+                const grid = el('main-grid-content');
+                if(grid) grid.innerHTML = `
+                    <div class="card" style="grid-column: 1 / -1;"><h3 style="color:var(--accent);">Chainsaws Adventures</h3><iframe style="width:100%; height:400px; border:none; border-radius:12px;" src="https://makecode.com/_JbWE3y4mtfac" sandbox="allow-scripts allow-same-origin"></iframe></div>
+                    <div class="card" style="grid-column: 1 / -1;"><h3 style="color:var(--accent);">Jujubro's Fighting Kaisen</h3><iframe style="width:100%; height:400px; border:none; border-radius:12px;" src="https://makecode.com/_6Kmgyw02C6a8" sandbox="allow-scripts allow-same-origin"></iframe></div>
+                `;
+            },
+
+            renderBounties: async () => {
+                const grid = el('main-grid-content');
+                if(!grid) return;
+                grid.innerHTML = '<p style="grid-column:1/-1; text-align:center;">Loading bounties...</p>';
+                try {
+                    const { data } = await db.from('bounties').select('*').order('id', { ascending: false });
+                    let html = `
+                        <div class="card" style="grid-column: 1 / -1; border-color:var(--accent);">
+                            <h4>Post a New Bounty</h4>
+                            <input type="text" id="bounty-desc" placeholder="Quest Description..." style="width:100%; margin-bottom:10px;">
+                            <input type="number" id="bounty-reward" placeholder="Reward Amount" style="width:100%; margin-bottom:10px;">
+                            <button type="button" data-action="createBounty" style="width:100%;">Post Quest</button>
+                        </div>
+                    `;
+                    if(data && data.length) {
+                        data.forEach(b => {
+                            html += `
+                                <div class="card">
+                                    <strong style="color:var(--gold); font-size:18px;">🪙 ${b.reward} Coins</strong>
+                                    <p style="margin:10px 0;">${b.description}</p>
+                                    <small style="color:gray;">Posted by: ${b.creator}</small>
+                                    <div style="margin-top:15px;">
+                                        ${!b.winner ? `<button type="button" data-action="claimBounty" data-id="${b.id}" style="width:100%;">Claim Completion</button>` : `<div style="text-align:center; padding:8px; background:rgba(74,222,128,0.2); color:var(--green); border-radius:8px;">Completed by ${b.winner}</div>`}
+                                    </div>
+                                </div>`;
+                        });
+                    }
+                    grid.innerHTML = html;
+                } catch(e) { grid.innerHTML = `<p style="color:red;">Error loading bounties.</p>`; }
+            },
+
+            createBounty: async () => {
+                if(!state.user) return alert("Log in first.");
+                const desc = el('bounty-desc').value.trim();
+                const rew = parseInt(el('bounty-reward').value);
+                if(!desc || isNaN(rew) || rew <= 0) return alert("Invalid inputs.");
+                if((state.user.coins || 0) < rew) return alert("Not enough coins.");
+                try {
+                    await db.from('profiles').update({ coins: state.user.coins - rew }).eq('username', state.user.username);
+                    await db.from('bounties').insert([{ creator: state.user.username, description: desc, reward: rew }]);
+                    alert("Bounty posted!");
+                    await App.loadSession(state.user.username);
+                    App.renderBounties();
+                } catch(e){ alert("Failed to post bounty."); }
+            },
+
+            claimBounty: async (id) => {
+                if(!state.user) return alert("Log in first.");
+                try {
+                    await db.from('bounty_claims').insert([{ bounty_id: id, claimant: state.user.username }]);
+                    alert("Claim sent to creator for review.");
+                } catch(e){ alert("Already claimed or error occurred."); }
+            },
+
+            renderPolls: async () => {
+                const grid = el('main-grid-content');
+                if(!grid) return;
+                try {
+                    const { data } = await db.from('polls').select('*').order('id', { ascending: false });
+                    let html = '';
+                    if(data && data.length) {
+                        data.forEach(p => {
+                            let opts =[];
+                            try { opts = typeof p.options === 'string' ? JSON.parse(p.options) : p.options; } catch(e){}
+                            let optsHtml = opts.map((o, i) => `<button type="button" data-action="votePoll" data-poll="${p.id}" data-opt="${i}" style="display:block; width:100%; margin-bottom:8px; background:var(--card-bg); border:1px solid var(--border);">${o}</button>`).join('');
+                            html += `<div class="card"><h4 style="color:var(--accent);">${p.question}</h4><small style="color:gray;">By: ${p.creator}</small><div style="margin-top:15px;">${optsHtml}</div></div>`;
+                        });
+                    } else html = '<p>No polls active.</p>';
+                    grid.innerHTML = html;
+                } catch(e){}
+            },
+
+            votePoll: async (pollId, optIdx) => {
+                if(!state.user) return alert("Log in to vote.");
+                try {
+                    await db.from('poll_votes').insert([{ poll_id: pollId, user_name: state.user.username, option_index: optIdx }]);
+                    alert("Vote cast!");
+                } catch(e){ alert("You probably already voted."); }
+            },
+
+            renderCasino: async () => {
+                const grid = el('main-grid-content');
+                if(!grid) return;
+                try {
+                    const { data } = await db.from('global_casino').select('*').eq('id', 1).single();
+                    state.jackpot = data ? (data.roulette_pool || 0) : 0;
+                    grid.innerHTML = `
+                        <div class="card" style="grid-column: 1 / -1; text-align:center; border:2px solid var(--gold);">
+                            <h2>GLOBAL JACKPOT</h2>
+                            <h1 id="casino-jackpot-display" style="color:var(--gold); font-size:48px;">🪙 ${state.jackpot.toFixed(0)}</h1>
+                        </div>
+                        <div class="card">
+                            <h3 style="color:var(--accent);">Roulette (20% Win Rate)</h3>
+                            <input type="number" id="roulette-bet" placeholder="Bet Amount..." style="width:100%; margin:15px 0;">
+                            <div style="display:flex; gap:10px;">
+                                <button type="button" data-action="roulette" data-color="red" style="flex:1; background:var(--red); height:50px;">🟥 RED</button>
+                                <button type="button" data-action="roulette" data-color="black" style="flex:1; background:#000; border:2px solid #333; height:50px;">⬛ BLACK</button>
+                            </div>
+                            <div id="roulette-result" style="margin-top:20px; text-align:center; font-weight:bold;"></div>
+                        </div>
+                        <div class="card" style="grid-column: 1 / -1;">
+                            <h3>🏇 Live Multiplayer Horse Racing</h3>
+                            <div style="width:100%; height:80px; background:#654321; border-radius:5px; position:relative; overflow:hidden; border:2px solid #fff; margin-top:15px;">
+                                <div style="position:absolute; right:10%; top:0; bottom:0; width:5px; background:repeating-linear-gradient(0deg, #fff, #fff 5px, #000 5px, #000 10px);"></div>
+                                <div id="horse-0" style="position:absolute; font-size:24px; left:0; top:5px; transition:left 0.1s linear;">🐎 <span style="font-size:10px;color:white;">Pilip</span></div>
+                                <div id="horse-1" style="position:absolute; font-size:24px; left:0; top:40px; transition:left 0.1s linear;">🐎 <span style="font-size:10px;color:white;">Krillip</span></div>
+                            </div>
+                        </div>
+                    `;
+                } catch(e){}
+            },
+
+            playRoulette: async (color) => {
+                if(!state.user) return alert("Log in to gamble.");
+                const bet = parseInt(el('roulette-bet').value);
+                const resDiv = el('roulette-result');
+                if(isNaN(bet) || bet <= 0) return alert("Invalid bet.");
+                if((state.user.coins || 0) < bet) return alert("Insufficient coins.");
+                
+                resDiv.style.color = "white"; resDiv.innerText = "🎰 Spinning...";
+                
+                setTimeout(async () => {
+                    try {
+                        const { data } = await db.from('global_casino').select('roulette_pool').eq('id', 1).single();
+                        let curJp = data ? (data.roulette_pool || 0) : 0;
+                        const isWin = Math.random() < 0.20;
+                        let newBal = state.user.coins;
+                        let newJp = curJp;
+                        
+                        if(isWin) {
+                            const winnings = bet + (bet * 0.35) + curJp;
+                            newBal += winnings;
+                            newJp = 0;
+                            resDiv.style.color = "var(--green)"; resDiv.innerText = `🎉 WIN! Payout: 🪙 ${winnings.toFixed(0)}`;
+                            if(winnings >= 5000) {
+                                db.channel('global-comms').send({ type: 'broadcast', event: 'megaphone', payload: { msg: `🎰 ${state.user.username} HIT THE JACKPOT OF ${winnings.toFixed(0)} COINS!` }});
+                            }
+                        } else {
+                            newBal -= bet;
+                            newJp += (bet * 0.25);
+                            resDiv.style.color = "var(--red)"; resDiv.innerText = `❌ LOSS. Lost 🪙 ${bet}`;
+                        }
+                        await db.from('profiles').update({ coins: newBal }).eq('username', state.user.username);
+                        await db.from('global_casino').update({ roulette_pool: newJp }).eq('id', 1);
+                        await App.loadSession(state.user.username);
+                    } catch(e){ resDiv.innerText = "Error processing bet."; }
+                }, 1000);
+            },
+
+            runHorseRace: () => {
+                const h0 = el('horse-0'), h1 = el('horse-1');
+                if(!h0 || !h1) return;
+                h0.style.transition = 'none'; h1.style.transition = 'none';
+                h0.style.left = '0%'; h1.style.left = '0%';
+                
+                setTimeout(() => {
+                    h0.style.transition = 'left 7s cubic-bezier(0.2, 0.8, 0.4, 1)';
+                    h1.style.transition = 'left 7s cubic-bezier(0.5, 0.1, 0.2, 1)';
+                    if(Math.random() > 0.5) { h0.style.left = '90%'; h1.style.left = '80%'; }
+                    else { h0.style.left = '75%'; h1.style.left = '90%'; }
+                    
+                    setTimeout(() => {
+                        if(state.role === 'admin' || state.role === 'owner') {
+                            db.from('global_casino').update({ horse_race_active: false }).eq('id', 1).then();
+                        }
+                    }, 7500);
+                }, 100);
+            },
+
+            // --- REELORTS ---
+            openReelorts: async () => {
+                const overlay = el('reelorts-overlay');
+                const feed = el('reelorts-feed');
+                if(!overlay || !feed) return;
+                overlay.style.display = 'flex';
+                feed.innerHTML = '<h2 style="color:white; text-align:center; margin-top:50px;">Fetching...</h2>';
+                try {
+                    const { data } = await db.storage.from('tyler-files').list('videos', { limit: 50 });
+                    if(!data || data.length === 0) { feed.innerHTML = '<h2 style="color:white;">No videos.</h2>'; return; }
+                    const vids = data.filter(f => f.name.match(/\.(mp4|webm|ogg|mov)$/i)).sort(() => 0.5 - Math.random());
+                    feed.innerHTML = '';
+                    vids.forEach(file => {
+                        const { data: pUrl } = db.storage.from('tyler-files').getPublicUrl('videos/' + file.name);
+                        feed.innerHTML += `
+                            <div style="position:relative; width:100%; height:100vh; scroll-snap-align:start; background:#000;">
+                                <video src="${pUrl.publicUrl}" loop autoplay muted playsinline onclick="this.muted=!this.muted" style="width:100%; height:100%; object-fit:contain;"></video>
+                                <div class="reelort-ui">
+                                    <button type="button" class="reelort-btn" data-action="tipReelort" data-file="${file.name}">🪙</button>
+                                    <button type="button" class="reelort-btn" data-action="chat" data-file="${file.name}">💬</button>
+                                </div>
+                                <div style="position:absolute; bottom:30px; left:20px; color:white; text-shadow:2px 2px 4px #000;">
+                                    <h4>${file.name}</h4><p style="font-size:12px;">Tap to unmute</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } catch(e) { feed.innerHTML = '<h2 style="color:red;">Failed to load.</h2>'; }
+            },
+
+            tipReelort: async (fileName) => {
+                if(!state.user) return alert("Log in to tip.");
+                const amt = parseInt(prompt(`Tip coins for '${fileName}'?`));
+                if(isNaN(amt) || amt <= 0 || (state.user.coins || 0) < amt) return alert("Invalid amount.");
+                try {
+                    await db.from('profiles').update({ coins: state.user.coins - amt }).eq('username', state.user.username);
+                    alert(`Tipped 🪙 ${amt}!`);
+                    await App.loadSession(state.user.username);
+                } catch(e){ alert("Failed to tip."); }
+            },
+
+            // --- ADMIN TOOLS & OS ---
+            loadRichest: async () => {
+                const list = el('richest-users-list');
+                if(!list) return;
+                try {
+                    const { data } = await db.from('profiles').select('username, coins, role').order('coins', { ascending: false }).limit(5);
+                    if(data) list.innerHTML = data.map((u, i) => `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid var(--border);"><span>${i+1}. ${u.username}</span><span style="color:var(--gold);">🪙 ${u.coins}</span></div>`).join('');
+                } catch(e){}
+            },
+
+            broadcast: () => {
+                const val = el('megaphone-input').value.trim();
+                if(val && db) {
+                    db.channel('global-comms').send({ type: 'broadcast', event: 'megaphone', payload: { msg: `[ADMIN] ${val}` } });
+                    el('megaphone-input').value = '';
+                }
+            },
+
+            toggleIntercom: async () => {
+                const btn = el('btn-intercom');
+                if (state.mediaRecorder && state.mediaRecorder.state === "recording") {
+                    state.mediaRecorder.stop();
+                    btn.style.background = "#fbbf24"; btn.innerText = "🎤 Hold to Talk"; btn.style.color = "#000";
+                    return;
+                }
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    state.mediaRecorder = new MediaRecorder(stream);
+                    state.audioChunks =[];
+                    state.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) state.audioChunks.push(e.data); };
+                    state.mediaRecorder.onstop = () => {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(new Blob(state.audioChunks, { type: 'audio/webm' }));
+                        reader.onloadend = () => { if(state.audioChannel) state.audioChannel.send({ type: 'broadcast', event: 'audio', payload: { data: reader.result } }); };
+                        stream.getTracks().forEach(t => t.stop());
+                    };
+                    state.mediaRecorder.start();
+                    btn.style.background = "var(--red)"; btn.style.color = "white"; btn.innerText = "🔴 Recording... Click to Stop";
+                } catch(e){ alert("Mic permission denied."); }
+            },
+
+            createPoll: async () => {
+                const q = el('poll-q').value.trim();
+                const opts = el('poll-opts').value.trim().split(',').filter(s=>s);
+                const t = parseInt(el('poll-time').value) || 60;
+                if(!q || opts.length < 2) return alert("Fill out question and at least 2 options.");
+                try {
+                    await db.from('polls').insert([{ creator: state.user.username, question: q, options: JSON.stringify(opts), ends_at: new Date(Date.now() + t*60000).toISOString() }]);
+                    alert("Poll deployed!");
+                    el('poll-q').value = ''; el('poll-opts').value = '';
+                    if(state.category === 'polls') App.renderPolls();
+                } catch(e){ alert("Failed to deploy poll."); }
+            },
+
+            toggleOS: () => {
+                const n = el('normal-mode'), o = el('os-mode');
+                if(o.style.display === 'none' || o.style.display === '') {
+                    n.style.display = 'none'; o.style.display = 'flex';
+                    const ec = el('win-explorer-content'), ac = el('win-admin-content');
+                    if(ec) { ec.appendChild(el('card-upload')); ec.appendChild(el('card-dynamic-content')); }
+                    if(ac && el('card-admin-dash')) { el('card-admin-dash').style.display='block'; ac.appendChild(el('card-admin-dash')); }
+                    if(el('icon-admin') && (state.role==='admin'||state.role==='owner')) el('icon-admin').style.display='block';
+                    el('settings-sidebar').classList.remove('open');
+                } else {
+                    n.style.display = 'flex'; o.style.display = 'none';
+                    const cl = el('main-col-left'), cr = el('main-col-right');
+                    if(cl) { cl.appendChild(el('card-upload')); cl.appendChild(el('card-dynamic-content')); }
+                    if(cr && el('card-admin-dash')) { cr.insertBefore(el('card-admin-dash'), cr.children[1]); if(state.role==='guest'||state.role==='user') el('card-admin-dash').style.display='none'; }
+                    el('win-explorer').style.display='none'; el('win-admin').style.display='none'; el('start-menu').style.display='none';
+                }
+            }
+        };
+
+        // ==========================================
+        // 5. GLOBAL EVENT DELEGATOR (BULLETPROOF NO-INLINE FIX)
+        // ==========================================
+        document.body.addEventListener('click', (e) => {
+            // Find the closest button with a data-action attribute
+            const target = e.target.closest('[data-action]');
+            if (!target) return;
+            
+            const action = target.getAttribute('data-action');
+            try {
+                if (action === 'category') {
+                    const cat = target.getAttribute('data-cat');
+                    el('modal-categories').style.display = 'none';
+                    App.fetchGallery(cat);
+                }
+                else if (action === 'download') {
+                    App.downloadFile(target.getAttribute('data-url'), target.getAttribute('data-file'), target.getAttribute('data-vid'));
+                }
+                else if (action === 'chat') {
+                    App.openChat(target.getAttribute('data-file'));
+                }
+                else if (action === 'react') {
+                    App.react(target.getAttribute('data-id'), target.getAttribute('data-emoji'));
+                }
+                else if (action === 'createBounty') {
+                    App.createBounty();
+                }
+                else if (action === 'claimBounty') {
+                    App.claimBounty(target.getAttribute('data-id'));
+                }
+                else if (action === 'votePoll') {
+                    App.votePoll(target.getAttribute('data-poll'), target.getAttribute('data-opt'));
+                }
+                else if (action === 'roulette') {
+                    App.playRoulette(target.getAttribute('data-color'));
+                }
+                else if (action === 'tipReelort') {
+                    App.tipReelort(target.getAttribute('data-file'));
+                }
+            } catch(err) {
+                console.error(`Delegated Action Failed [${action}]:`, err);
+            }
+        });
+
+        // ==========================================
+        // 6. SYSTEM BOOTSTRAPPER (Replaces standard window.onload to ensure it runs)
+        // ==========================================
+        const bootSystem = () => {
+            try {
+                updateText('main-title', 'Tyler Files'); // Remove "(Loading...)" text
+                App.initSupabase();
+                App.initRealtime();
+                App.rebindFileInput();
+
+                // Static Button Bindings
+                bindBtn('btn-cycle-theme', 'click', App.cycleTheme);
+                bindBtn('btn-online-status', 'click', () => { if(state.role==='admin'||state.role==='owner') { const d=el('online-dropdown'); if(d) d.style.display = d.style.display==='block'?'none':'block'; } });
+                bindBtn('btn-account', 'click', () => { el('modal-profile').style.display = 'flex'; });
+                bindBtn('btn-categories', 'click', () => { el('modal-categories').style.display = 'flex'; });
+                bindBtn('btn-settings', 'click', () => { el('settings-sidebar').classList.add('open'); });
+                
+                bindBtn('btn-close-profile', 'click', () => { el('modal-profile').style.display = 'none'; });
+                bindBtn('btn-close-cat-modal', 'click', () => { el('modal-categories').style.display = 'none'; });
+                bindBtn('btn-close-settings', 'click', () => { el('settings-sidebar').classList.remove('open'); });
+                bindBtn('btn-close-chat', 'click', () => { el('chat-sidebar').classList.remove('open'); state.activeChat=null; });
+                
+                bindBtn('btn-auth-login', 'click', App.login);
+                bindBtn('btn-logout', 'click', App.logout);
+                bindBtn('btn-claim-daily', 'click', App.claimDaily);
+                bindBtn('btn-prof-save', 'click', async () => {
+                    if(!state.user || !db) return;
+                    await db.from('profiles').update({ bio: el('prof-bio').value }).eq('username', state.user.username);
+                    alert("Bio Saved!");
+                });
+                
+                bindBtn('btn-prof-pfp-trigger', 'click', () => { const f=el('prof-pfp-upload'); if(f) f.click(); });
+                const pfpUp = el('prof-pfp-upload');
+                if(pfpUp) pfpUp.addEventListener('change', async (e) => {
+                    if(!state.user || !e.target.files.length || !db) return;
+                    try {
+                        const file = e.target.files[0];
+                        const path = `pfp/${state.user.username}_${Date.now()}`;
+                        el('btn-prof-pfp-trigger').innerText = "⏳";
+                        await db.storage.from('tyler-files').upload(path, file);
+                        const { data } = db.storage.from('tyler-files').getPublicUrl(path);
+                        await db.from('profiles').update({ pfp_url: data.publicUrl }).eq('username', state.user.username);
+                        el('prof-pfp').src = data.publicUrl;
+                        el('btn-prof-pfp-trigger').innerText = "✏️";
+                    } catch(err){ alert("PFP Upload Failed"); }
+                });
+
+                bindBtn('btn-upload-submit', 'click', App.uploadFile);
+                bindBtn('btn-refresh-gallery', 'click', () => App.fetchGallery(state.category));
+                bindBtn('btn-chat-send', 'click', App.sendChat);
+                bindBtn('btn-enter-reelorts', 'click', App.openReelorts);
+                bindBtn('btn-close-reelorts', 'click', () => { el('reelorts-overlay').style.display = 'none'; el('reelorts-feed').innerHTML = ''; });
+                
+                bindBtn('btn-admin-login', 'click', App.checkAdmin);
+                bindBtn('btn-megaphone-send', 'click', App.broadcast);
+                bindBtn('btn-intercom', 'mousedown', App.toggleIntercom);
+                bindBtn('btn-create-poll', 'click', App.createPoll);
+                bindBtn('btn-start-race', 'click', async () => { if(db) await db.from('global_casino').update({ horse_race_active: true }).eq('id', 1); });
+                bindBtn('btn-refresh-rich', 'click', App.loadRichest);
+                
+                bindBtn('btn-toggle-os', 'click', App.toggleOS);
+                bindBtn('btn-os-shutdown', 'click', App.toggleOS);
+                bindBtn('icon-explorer', 'click', () => { el('win-explorer').style.display='flex'; });
+                bindBtn('btn-close-explorer', 'click', () => { el('win-explorer').style.display='none'; });
+                bindBtn('icon-admin', 'click', () => { el('win-admin').style.display='flex'; });
+                bindBtn('btn-close-admin', 'click', () => { el('win-admin').style.display='none'; });
+                bindBtn('btn-start', 'click', () => { const s=el('start-menu'); if(s) s.style.display=s.style.display==='flex'?'none':'flex'; });
+
+                // OS Drag Logic
+                let dWin = null, oX = 0, oY = 0;
+                const setupDrag = (wId, hId) => {
+                    const w = el(wId), h = el(hId);
+                    if(w && h) h.addEventListener('mousedown', (e) => {
+                        if(e.target.tagName === 'BUTTON') return;
+                        dWin = w; const r = w.getBoundingClientRect();
+                        oX = e.clientX - r.left; oY = e.clientY - r.top;
+                        w.style.zIndex = 5010;
+                    });
+                };
+                setupDrag('win-explorer', 'win-explorer-header');
+                setupDrag('win-admin', 'win-admin-header');
+                document.addEventListener('mousemove', (e) => { if(dWin) { dWin.style.left = Math.max(0, e.clientX - oX) + 'px'; dWin.style.top = Math.max(0, Math.min(e.clientY - oY, window.innerHeight-50)) + 'px'; } });
+                document.addEventListener('mouseup', () => { if(dWin) { dWin.style.zIndex = 5005; dWin = null; } });
+
+                // Load Initial Data
+                App.fetchGallery('all');
+
+            } catch (err) {
+                console.error("BOOT FAILURE:", err);
+                const dbg = el('sys-debugger');
+                if(dbg) {
+                    dbg.style.display = 'block';
+                    dbg.innerHTML += `<div>[FATAL] System Boot Failed: ${err.message}</div>`;
+                }
+            }
+        };
+
+        // Guarantee execution regardless of CodeHS loading quirks
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(bootSystem, 100);
+        } else {
+            document.addEventListener('DOMContentLoaded', bootSystem);
+            window.addEventListener('load', bootSystem);
+        }
+
+    </script>
+</body>
+</html>
